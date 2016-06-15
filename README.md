@@ -30,3 +30,15 @@ then rendered in a math environment).
 ## Security considerations
 
 Don't run `latex2png` on untrusted files.
+
+
+## License
+
+To the extent that this shell script exceeds a basic threshold of originality,
+it is dual-licensed, meaning that you can (and are invited to) use,
+redistribute and modify it under the terms of either:
+
+1. The GNU General Public License (GPL), version 3 or (at your option) any
+   later version published by the Free Software Foundation.
+2. The LaTeX Project Public License (LPPL), version 1.3c or (at your option)
+   any later version published by the LaTeX3 project.
