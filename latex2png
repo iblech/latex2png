@@ -1,31 +1,115 @@
 #!/bin/bash
-# Usage: latex2png.sh foo.tex
+# Usage: latex2png foo.tex
+#    OR: latex2png foo-dir  # to continuously process all TeX files in foo-dir
 
 set -e
 
-do_abort=0
-if [ ! -e "$1" ]; then
-    echo "LaTeX source file '$1' not found." >&2
-    do_abort=1
-fi
+function process_file {
+    if [ ! -e "$1" ]; then
+        echo "LaTeX source file '$1' not found." >&2
+        do_abort=1
+    fi
 
-if [ ! "$1" = "$(basename -- "$1" .tex).tex" ]; then
-    echo "LaTeX source file doesn't end in '.tex'." >&2
-    do_abort=1
-fi
+    basename="${1%.tex}"
+    if [ ! "$1" = "$basename.tex" ]; then
+        echo "LaTeX source file doesn't end in '.tex'." >&2
+        do_abort=1
+    fi
+
+    rm -f "$tempdir/cropped.pdf"
+
+    if grep documentclass -- "$1" >/dev/null; then
+        multipage_mode=1
+        cp -- "$1" "$tempdir/main.tex"
+    else
+        multipage_mode=0
+        cat > "$tempdir/main.tex" <<'EOF'
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,stmaryrd,mathtools}
+\usepackage[all]{xy}
+\thispagestyle{empty}
+\begin{document}\[
+EOF
+        cat -- "$1" >> "$tempdir/main.tex"
+        echo '\]\end{document}' >> "$tempdir/main.tex"
+    fi
+
+    (
+        cd "$tempdir"
+        if pdflatex main </dev/null &>/dev/null; then
+            pdfcrop --margins 0 main.pdf cropped.pdf &>/dev/null
+            pdftoppm -rx 600 -ry 600 -png cropped.pdf cropped
+        else
+            cat main.log >&2
+        fi
+    )
+
+    if [ -e "$tempdir/cropped.pdf" ]; then
+        rm -f -- "$basename.log"
+        rm -f -- "$basename.png"
+        if [ "$multipage_mode" = "0" ]; then
+            cp -- "$tempdir/cropped-1.png" "$basename.png"
+        else
+            i=1
+            rm -f "$basename"-??.png
+            for file in "$tempdir"/cropped-*.png; do
+                cp -- "$file" "$basename-$(printf %02d $i).png"
+                : $((i++))
+            done
+        fi
+    else
+        cp -- "$tempdir/main.log" "$basename.log"
+        exit 1
+    fi
+}
+
+function continuous_update {
+    have_inotifywait=1
+    which inotifywait >/dev/null || {
+        echo "Warning: 'inotifywait' not found. Install a package like inotify-tools." >&2
+        echo "Falling back to polling." >&2
+        have_inotifywait=0
+    }
+
+    while :; do
+        echo "* $(date)" >&2
+        for i in $(seq 5); do
+            for j in "$1"/*.tex; do
+                if [ \
+                    "$j" -nt "${j%.tex}.png" -a \
+                    "$j" -nt "${j%.tex}-01.png" \
+                ]; then
+                    echo "$j" >&2
+                    process_file "$j"
+                fi
+            done
+            sleep 0.3
+        done
+        echo >&2
+
+        if [ "$have_inotifywait" = "1" ]; then
+            inotifywait -e modify -e moved_to -e create -e close_write "$1" &>/dev/null
+        else
+            sleep 0.3
+        fi
+    done
+}
+
+do_abort=0
 
 which pdflatex >/dev/null || {
-    echo "'pdflatex' not found. Install a package like texlive-latex-base." >&2
+    echo "'Error: pdflatex' not found. Install a package like texlive-latex-base." >&2
     do_abort=1
 }
 
 which pdfcrop >/dev/null || {
-    echo "'pdfcrop' not found. Install a package like texlive-extra-utils." >&2
+    echo "'Error: pdfcrop' not found. Install a package like texlive-extra-utils." >&2
     do_abort=1
 }
 
 which pdftoppm >/dev/null || {
-    echo "'pdftoppm' not found. Install a package like poppler-utils." >&2
+    echo "Error: 'pdftoppm' not found. Install a package like poppler-utils." >&2
     do_abort=1
 }
 
@@ -37,49 +121,8 @@ function cleanup {
 }
 trap cleanup EXIT
 
-if grep documentclass -- "$1" >/dev/null; then
-    multipage_mode=1
-    cp -- "$1" "$tempdir/main.tex"
+if [ -d "$1" ]; then
+    continuous_update "$1"
 else
-    multipage_mode=0
-    cat > "$tempdir/main.tex" <<'EOF'
-\documentclass[12pt]{article}
-\usepackage[utf8]{inputenc}
-\usepackage{amsmath,amssymb,stmaryrd,mathtools}
-\usepackage[all]{xy}
-\thispagestyle{empty}
-\begin{document}\[
-EOF
-    cat -- "$1" >> "$tempdir/main.tex"
-    echo '\]\end{document}' >> "$tempdir/main.tex"
-fi
-
-(
-    cd "$tempdir"
-    if pdflatex main </dev/null &>/dev/null; then
-        pdfcrop --margins 0 main.pdf cropped.pdf &>/dev/null
-        pdftoppm -rx 600 -ry 600 -png cropped.pdf cropped
-    else
-        cat main.log >&2
-    fi
-)
-
-basename="$(basename -- "$1" .tex)"
-
-if [ -e "$tempdir/cropped.pdf" ]; then
-    rm -f -- "$basename.log"
-    rm -f -- "$basename.png"
-    if [ "$multipage_mode" = "0" ]; then
-        cp -- "$tempdir/cropped-1.png" "$basename.png"
-    else
-        i=1
-        rm -f "$basename"-??.png
-        for file in "$tempdir"/cropped-*.png; do
-            cp -- "$file" "$basename-$(printf %02d $i).png"
-            : $((i++))
-        done
-    fi
-else
-    cp -- "$tempdir/main.log" "$basename.log"
-    exit 1
+    process_file "$1"
 fi

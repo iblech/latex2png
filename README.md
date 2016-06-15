@@ -7,11 +7,11 @@ A short shell script to compile LaTeX sources to cropped PNG images.
 
 ```shell
 # one-shot mode:
-./latex2png foo.tex
+latex2png foo.tex
 
 # or continuously regenerate the PNG images upon any changes to any .tex file
-# in the current directory
-./continuous-update.sh
+# in directory foo/
+latex2png foo
 ```
 
 The LaTeX source files can either be normal source files containing a proper
