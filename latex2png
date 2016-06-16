@@ -88,7 +88,9 @@ function continuous_update {
         done
         echo >&2
 
-        if [ "$have_inotifywait" = "1" ]; then
+        if [ -n "$LATEX2PNG_INTERVAL" ]; then
+            sleep "$LATEX2PNG_INTERVAL"
+        elif [ "$have_inotifywait" = "1" ]; then
             inotifywait -e modify -e moved_to -e create -e close_write "$1" &>/dev/null
         else
             sleep 0.3

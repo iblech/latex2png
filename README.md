@@ -32,6 +32,16 @@ then rendered in a math environment).
 Don't run `latex2png` on untrusted files.
 
 
+## In connection with remote filesystems
+
+Some filesystems don't generate inotify events. In this case you should
+manually specify the checking interval when using latex2png in continuous mode:
+
+```shell
+LATEX2PNG_INTERVAL=60 latex2png foo  # check every 60 seconds
+```
+
+
 ## License
 
 To the extent that this shell script exceeds a basic threshold of originality,
