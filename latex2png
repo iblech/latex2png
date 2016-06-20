@@ -37,6 +37,7 @@ EOF
 
     (
         cd "$tempdir"
+        rm -f cropped-*.png
         if pdflatex main </dev/null &>/dev/null; then
             pdfcrop --margins 0 main.pdf cropped.pdf &>/dev/null
             pdftoppm -rx 600 -ry 600 -png cropped.pdf cropped
