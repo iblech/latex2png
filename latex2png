@@ -5,6 +5,8 @@
 set -e
 
 function process_file {
+    do_abort=0
+
     if [ ! -e "$1" ]; then
         echo "LaTeX source file '$1' not found." >&2
         do_abort=1
@@ -15,6 +17,8 @@ function process_file {
         echo "LaTeX source file doesn't end in '.tex'." >&2
         do_abort=1
     fi
+
+    [ "$do_abort" = "1" ] && return 1
 
     rm -f "$tempdir/cropped.pdf"
 
@@ -53,7 +57,7 @@ EOF
             cp -- "$tempdir/cropped-1.png" "$basename.png"
         else
             i=1
-            rm -f "$basename"-??.png
+            rm -f -- "$basename"-??.png
             for file in "$tempdir"/cropped-*.png; do
                 cp -- "$file" "$basename-$(printf %02d $i).png"
                 : $((i++))
@@ -61,7 +65,7 @@ EOF
         fi
     else
         cp -- "$tempdir/main.log" "$basename.log"
-        exit 1
+        return 1
     fi
 }
 
@@ -82,7 +86,7 @@ function continuous_update {
                     "$j" -nt "${j%.tex}-01.png" \
                 ]; then
                     echo "$j" >&2
-                    process_file "$j"
+                    process_file "$j" || true
                 fi
             done
             sleep 0.3
