@@ -106,12 +106,12 @@ function continuous_update {
 do_abort=0
 
 which pdflatex >/dev/null || {
-    echo "'Error: pdflatex' not found. Install a package like texlive-latex-base." >&2
+    echo "Error: 'pdflatex' not found. Install a package like texlive-latex-base." >&2
     do_abort=1
 }
 
 which pdfcrop >/dev/null || {
-    echo "'Error: pdfcrop' not found. Install a package like texlive-extra-utils." >&2
+    echo "Error: 'pdfcrop' not found. Install a package like texlive-extra-utils." >&2
     do_abort=1
 }
 
